@@ -57,6 +57,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
+import { useAppFlags } from "@/hooks/use-app-flags"
 import { AttentionContext } from "@/lib/attention-context"
 import {
   authApi,
@@ -78,7 +79,17 @@ import { toast } from "sonner"
 const ATTENTION_POLL_MS = 60_000
 
 /** 主体功能，排在侧边栏上部 */
-const baseNav = [
+interface BaseNavItem {
+  to: string
+  labelKey: string
+  icon: React.ElementType
+  end: boolean
+  /** 「实验中」小标签（AI实验室等尚在打磨的新功能） */
+  experimental?: boolean
+  /** 受哪个站点开关控制；undefined = 恒显示 */
+  feature?: "lab"
+}
+const baseNav: BaseNavItem[] = [
   { to: "/dashboard", labelKey: "nav.overview", icon: LayoutDashboard, end: true },
   { to: "/dashboard/domains", labelKey: "nav.domains", icon: Globe, end: false },
   { to: "/dashboard/email", labelKey: "nav.email", icon: Mail, end: false },
@@ -88,8 +99,9 @@ const baseNav = [
   { to: "/dashboard/proxy", labelKey: "nav.proxy", icon: Zap, end: false },
   { to: "/dashboard/profile", labelKey: "nav.profile", icon: Contact, end: false },
   { to: "/dashboard/community", labelKey: "nav.community", icon: MessagesSquare, end: false },
-  { to: "/dashboard/lab", labelKey: "nav.lab", icon: FlaskConical, end: false, experimental: true },
-  { to: "/dashboard/gallery", labelKey: "nav.gallery", icon: LayoutGrid, end: false },
+  // feature: "lab" ⇒ 受 AI 实验室/造物集总开关（lab_enabled）控制，见下方 filter
+  { to: "/dashboard/lab", labelKey: "nav.lab", icon: FlaskConical, end: false, experimental: true, feature: "lab" as const },
+  { to: "/dashboard/gallery", labelKey: "nav.gallery", icon: LayoutGrid, end: false, feature: "lab" as const },
   { to: "/dashboard/toolbox", labelKey: "nav.toolbox", icon: Wrench, end: false },
 ]
 
@@ -138,6 +150,7 @@ export function DashboardLayout({
   children?: React.ReactNode
 }) {
   const { user, setUser } = useAuth()
+  const appFlags = useAppFlags()
   /** 「发给用户的根域」（如 tyu.me），由后端下发，不写死 —— 管理员可改 */
   const [rootDomain, setRootDomain] = React.useState("")
   React.useEffect(() => {
@@ -362,14 +375,7 @@ export function DashboardLayout({
     }
   }
 
-  const renderNavItem = (item: {
-    to: string
-    labelKey: string
-    icon: React.ElementType
-    end: boolean
-    /** 「实验中」小标签（AI实验室等尚在打磨的新功能） */
-    experimental?: boolean
-  }) => {
+  const renderNavItem = (item: BaseNavItem) => {
     const active = item.end
       ? location.pathname === item.to
       : location.pathname.startsWith(item.to)
@@ -498,7 +504,11 @@ export function DashboardLayout({
           activeSelector='[data-nav-active="1"]'
           className="rounded-md bg-accent"
         />
-        {baseNav.map((item) => renderNavItem(item))}
+        {/* AI实验室 / 造物集受模块总开关（lab_enabled）控制。只在明确拿到
+            false 时隐藏：开关接口失败按全开兜底，避免一次抖动把入口藏没。 */}
+        {baseNav
+          .filter((item) => (item.feature === "lab" ? appFlags.labEnabled !== false : true))
+          .map((item) => renderNavItem(item))}
       </nav>
 
       {/* 底部固定区：与上方功能之间留白，紧贴账户信息 */}

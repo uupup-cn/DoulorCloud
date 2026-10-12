@@ -49,6 +49,7 @@ import {
   type AdminLabReview,
 } from "@/services/api"
 import { buildPreviewDoc, DEFAULT_AGENT_SYSTEM } from "@/lib/lab-agent"
+import { refreshAppFlags } from "@/hooks/use-app-flags"
 import { cn } from "@/lib/utils"
 import { useT } from "@/i18n"
 
@@ -72,6 +73,8 @@ export function AdminLabTab() {
   const [clearing, setClearing] = React.useState(false)
 
   // —— 草稿状态（全部由 load() 灌进去，save() 整体提交）——
+  /** 模块总开关：关掉后侧边栏隐藏「AI实验室」「造物集」、用户端接口 403；本页配置不受影响 */
+  const [enabled, setEnabled] = React.useState(true)
   const [aiSource, setAiSource] = React.useState<Source>("user")
   const [adminKeyInput, setAdminKeyInput] = React.useState("")
   const [hasAdminKey, setHasAdminKey] = React.useState(false)
@@ -95,6 +98,7 @@ export function AdminLabTab() {
   const [channels, setChannels] = React.useState<ChannelDraft[]>([])
 
   const apply = (res: AdminLabConfig) => {
+    setEnabled(res.enabled)
     setAiSource(res.aiSource)
     setHasAdminKey(res.hasAdminKey)
     setAdminKeyTail(res.adminKeyTail)
@@ -213,6 +217,7 @@ export function AdminLabTab() {
     setBusy(true)
     try {
       const res = await adminApi.saveLabConfig({
+        enabled,
         aiSource,
         freeQuota,
         freeQuotaPeriod,
@@ -231,6 +236,8 @@ export function AdminLabTab() {
         ...(adminKeyInput.trim() ? { adminApiKey: adminKeyInput.trim() } : {}),
       })
       apply(res)
+      // 通知外壳（侧边栏 / 路由门禁）立即感知总开关变化，不必等用户刷新页面
+      void refreshAppFlags()
       toast.success(t("adm.lab.saved"))
     } catch (err) {
       toast.error(errMsg(err, t("adm.lab.saveFailed")))
@@ -268,6 +275,32 @@ export function AdminLabTab() {
 
   return (
     <div className="space-y-6">
+      {/* ---------------- 模块总开关 ---------------- */}
+      {/* 排最前：它决定整个模块的生死，其余配置都是"开着时怎么跑"的细节 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("adm.lab.enableTitle")}</CardTitle>
+          <CardDescription>{t("adm.lab.enableDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <SourceOption
+              active={enabled}
+              title={t("adm.lab.enableOn")}
+              desc={t("adm.lab.enableOnDesc")}
+              onSelect={() => setEnabled(true)}
+            />
+            <SourceOption
+              active={!enabled}
+              title={t("adm.lab.enableOff")}
+              desc={t("adm.lab.enableOffDesc")}
+              onSelect={() => setEnabled(false)}
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground">{t("adm.lab.enableHint")}</p>
+        </CardContent>
+      </Card>
+
       {/* ---------------- 模型来源 ---------------- */}
       <Card>
         <CardHeader>

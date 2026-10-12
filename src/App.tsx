@@ -5,6 +5,8 @@ import { Loader2 } from "lucide-react"
 import { LandingLayout } from "@/layouts/landing-layout"
 import { DashboardLayout } from "@/layouts/dashboard-layout"
 import { useAuth } from "@/hooks/use-auth"
+import { useAppFlags } from "@/hooks/use-app-flags"
+import { useT } from "@/i18n"
 import { communityApi } from "@/services/api"
 import { page } from "@/lib/route-preload"
 import { AnalyticsTracker } from "@/components/analytics-tracker"
@@ -125,6 +127,27 @@ function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+/**
+ * AI 实验室 / 造物集的**模块门禁**。
+ *
+ * 总开关（lab_enabled）关闭时：侧边栏已隐藏这两个入口，但直接手敲 URL、
+ * 或从收藏夹/历史记录进入仍会命中这两个路由 —— 这里再挡一次，给出明确说明，
+ * 而不是让页面自己抛一堆 403 错误。服务端对 `/lab*`、`/gallery*` 另有 403 兜底。
+ *
+ * 只在**明确拿到 false** 时拦截：开关接口失败按"开放"处理，避免抖动误伤。
+ */
+function LabFeatureGate({ children }: { children: React.ReactNode }) {
+  const { labEnabled } = useAppFlags()
+  const { t } = useT()
+  if (labEnabled !== false) return <>{children}</>
+  return (
+    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 px-6 text-center">
+      <h1 className="text-lg font-medium">{t("lab.disabled.title")}</h1>
+      <p className="max-w-md text-sm text-muted-foreground">{t("lab.disabled.desc")}</p>
+    </div>
+  )
+}
+
 /** 公开短链 /community[/:id] 收敛到控制台路由，保证侧边栏始终在场 */
 function CommunityRedirect() {
   const { id } = useParams<{ id: string }>()
@@ -214,8 +237,8 @@ function AppRoutes() {
         <Route path="community" element={<CommunityPage inDashboard />} />
         <Route path="community/:id" element={<CommunityPage inDashboard />} />
         <Route path="toolbox" element={<ToolboxPage />} />
-        <Route path="lab" element={<LabPage />} />
-        <Route path="gallery" element={<GalleryPage />} />
+        <Route path="lab" element={<LabFeatureGate><LabPage /></LabFeatureGate>} />
+        <Route path="gallery" element={<LabFeatureGate><GalleryPage /></LabFeatureGate>} />
         <Route path="toolbox/:toolId" element={<ToolboxDetailPage />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="achievements" element={<AchievementsPage />} />

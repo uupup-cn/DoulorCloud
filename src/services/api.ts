@@ -293,6 +293,18 @@ async function request<T>(
   return data as T
 }
 
+// ---- 站点公开开关（无需登录，外壳用） ----
+
+/** /api/app-flags 的响应：站点级模块开关 */
+export interface AppFlags {
+  /** AI 实验室 / 造物集是否开放（侧边栏显隐 + 路由门禁依据） */
+  labEnabled: boolean
+}
+
+export const appApi = {
+  flags: () => request<AppFlags>("/app-flags"),
+}
+
 // ---- Auth ----
 
 export const authApi = {
@@ -509,6 +521,11 @@ export interface AdminLabChannel {
 
 /** 管理端 · AI 实验室配置 */
 export interface AdminLabConfig {
+  /**
+   * 总开关：关掉时侧边栏隐藏「AI实验室」「造物集」、用户端接口 403，
+   * 但本配置页仍可正常读写（站长要能关掉后继续调配置）。
+   */
+  enabled: boolean
   /** user = 各用户自己的额度；admin = 全站统一用管理员提供的 Key */
   aiSource: "user" | "admin"
   /** 选了 admin 但没配 Key（后端会自动退回按用户扣费）—— 面板要红字提示 */
@@ -871,6 +888,8 @@ export const adminApi = {
    * `adminApiKey` 留空表示不修改统一 Key；要清空请显式传 `clearAdminKey`。
    */
   saveLabConfig: (payload: {
+    /** 模块总开关（关掉只影响用户端入口与功能，不影响本配置页） */
+    enabled?: boolean
     aiSource?: "user" | "admin"
     adminApiKey?: string
     clearAdminKey?: boolean

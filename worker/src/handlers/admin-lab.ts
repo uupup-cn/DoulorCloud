@@ -72,6 +72,8 @@ async function buildConfig(env: Env) {
   const configuredSource = normalizeSource(s.lab_ai_source)
 
   return {
+    /** 模块总开关：关掉时侧边栏隐藏、用户端接口 403；管理端配置不受影响 */
+    enabled: s.lab_enabled !== "0",
     aiSource: configuredSource,
     /** 配了「统一 Key」模式却没有可用 Key —— 此时后端会自动退回按用户扣费 */
     adminUnavailable: configuredSource === "admin" && !adminKey,
@@ -182,6 +184,13 @@ export async function updateLabConfig(env: Env, request: Request): Promise<Respo
     const on = body.reviewRequired === true || body.reviewRequired === "1"
     values.lab_review_required = on ? "1" : "0"
     changed.push(on ? "作品公开需审核=开" : "作品公开需审核=关")
+  }
+
+  if ("enabled" in body) {
+    // 总开关。关掉不影响本接口（管理端始终可改配置），只影响用户端入口与接口。
+    const on = body.enabled === true || body.enabled === "1"
+    values.lab_enabled = on ? "1" : "0"
+    changed.push(on ? "AI实验室/造物集=开" : "AI实验室/造物集=关")
   }
 
   if ("channels" in body) {

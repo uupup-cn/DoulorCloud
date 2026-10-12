@@ -793,6 +793,18 @@ export const SETTING_DEFAULTS = {
    * 只在「从非公开 → 公开」的那一次触发，否则改个简介都要等审核。
    */
   lab_review_required: "1",
+  /**
+   * AI 实验室 / 造物集的**总开关**。
+   *
+   *   · "1"（默认，开启）= 侧边栏展示「AI实验室」「造物集」，功能与接口均可用；
+   *   · "0"（关闭）= 侧边栏隐藏这两项、直接访问其路由/接口被拒（403），
+   *     但**管理端的配置修改不受影响** —— 关掉只是为了对用户收口，
+   *     站长仍要能进后台继续调模型、提示词、审核队列等配置。
+   *
+   * 服务端拦截点见 index.ts 的 dispatch（`/lab*`、`/gallery*` 前缀统一挡下）；
+   * 前端据 `/api/app-flags` 隐藏入口，见 src/hooks/use-app-flags.ts。
+   */
+  lab_enabled: "1",
 } as const
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS

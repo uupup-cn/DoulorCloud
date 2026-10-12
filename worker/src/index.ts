@@ -63,6 +63,8 @@ import * as moderationListHandlers from "./handlers/moderation-lists"
 import * as pointHandlers from "./handlers/points"
 import * as dbBackupHandlers from "./handlers/db-backup"
 import * as attentionHandlers from "./handlers/attention"
+import * as appFlagsHandlers from "./handlers/app-flags"
+import { getSettingBool } from "./settings"
 import { renderProfileHtml, renderNotFoundHtml } from "./profile-page"
 import { incomingEmail } from "./email-delivery"
 import { runMaintenance } from "./maintenance"
@@ -121,6 +123,13 @@ function buildRoutes(env: Env, request: Request, ctx?: ExecutionContext): RouteR
     method: "GET",
     handle: () =>
       authHandlers.registerStatus(env),
+  },
+
+  {
+    kind: "exact",
+    path: "/app-flags",
+    method: "GET",
+    handle: () => appFlagsHandlers.getAppFlags(env),
   },
 
   {
@@ -4190,6 +4199,28 @@ async function dispatch(
   method: string,
   ctx?: ExecutionContext
 ): Promise<Response | null> {
+  /**
+   * AI 实验室 / 造物集的模块总开关（`lab_enabled`），在这里统一拦截：
+   * 关掉时用户端的 `/lab*` 与 `/gallery*` 接口一律 403，前端也就无法"绕过
+   * 隐藏的菜单"继续使用功能。
+   *
+   * 拦截点选在 dispatch 而不是逐个 handler：这两组接口横跨 lab.ts / lab-skills.ts /
+   * lab-search.ts 多个文件，逐个加守卫容易漏（漏一个就是一条静默可用的小路）。
+   *
+   * ⚠️ 只匹配用户端前缀：管理端是 `/admin/lab/*`（前缀不同，不受影响）——
+   *   站长关掉模块后仍要能进后台改配置、审作品。
+   */
+  if (
+    routePath === "/lab" ||
+    routePath.startsWith("/lab/") ||
+    routePath === "/gallery" ||
+    routePath.startsWith("/gallery/")
+  ) {
+    if (!(await getSettingBool(env, "lab_enabled"))) {
+      throw new ApiError(403, "AI 实验室与造物集当前未开放", "LAB_DISABLED")
+    }
+  }
+
   for (const r of buildRoutes(env, request, ctx)) {
     if (r.kind === "exact") {
       if (routePath === r.path && method === r.method) return r.handle()

@@ -14,6 +14,7 @@ export const API_MESSAGES_EN: Record<string, string> = {
   "A 记录内容必须是 IPv4 地址": "A records must contain an IPv4 address",
   "AAAA 记录内容必须是 IPv6 地址": "AAAA records must contain an IPv6 address",
   "AI 中转站功能已关闭": "AI Gateway is turned off",
+  "AI 实验室与造物集当前未开放": "The AI Lab and Creations are currently closed",
   "AI 中转站未配置": "AI Gateway isn't configured",
   "AI 中转站未配置管理员令牌": "AI Gateway has no admin token configured",
   "AI 中转站未配置（缺少 NEWAPI_BASE_URL）": "AI Gateway isn't configured (NEWAPI_BASE_URL is missing)",
