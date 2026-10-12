@@ -10,6 +10,16 @@ import { defineConfig } from "vite"
 // 而本项目的部署方式是 wrangler.jsonc + site-worker.js + assets.directory=./dist，
 // 期望产物直接在 dist/。加了插件会导致 wrangler 部署到旧的 dist 内容，
 // 表现为「代码改了、也部署了，但线上没变化」。
+// 转发到本地 wrangler dev（8787）的共用配置。
+// 每次调用返回新对象：不要多个代理条目共用同一个对象实例。
+const workerProxy = () => ({
+  target: "https://127.0.0.1:8787",
+  changeOrigin: true,
+  // wrangler dev 本地是自签证书（--local-protocol https），必须关校验，
+  // 否则代理报 SELF_SIGNED_CERT_IN_CHAIN
+  secure: false,
+})
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -52,6 +62,22 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // 以下路径**由 Worker 直接服务**（生产环境靠 doulor.cn/dl|profile|p|s|u/*
+      // 这些独立 Route 承载，不经过前端路由），本地必须一并代理。
+      // 不代理的后果：请求落到 Vite 的 SPA fallback 被兜成 index.html，
+      // React Router 里没有对应路由 → 公开名片页打开是「页面不存在」404、
+      // 名片图片全部裂开（这正是「打开公开页 404」的真实原因）。
+      //   /profile/<slug>      公开名片页（Worker 端 SSR 的整页 HTML）
+      //   /p/<用户名>/<资源>   名片图库、头像、背景、音乐、歌词
+      //   /u/<用户名>/avatar   公开头像
+      //   /dl/<用户名>/<文件>  网盘直链
+      //   /s/<token>           公开目录分享
+      // ⚠️ 键必须带尾斜杠：SPA 自己的顶层路由 /privacy、/points 等不能被 "/p" 误匹配。
+      "/profile/": workerProxy(),
+      "/p/": workerProxy(),
+      "/u/": workerProxy(),
+      "/dl/": workerProxy(),
+      "/s/": workerProxy(),
     },
   },
   build: {
